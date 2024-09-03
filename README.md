@@ -14,7 +14,11 @@ In order to use GPT-4 with this program, you need to have proper access to the A
 ## Installation
 - Clone the repository:
 
-	`git clone https://github.com/curcic/GUI-GPT.git`
+	`git clone https://github.com/iTinkerBell/GUI-GPT.git`
+
+- Create a virtual environment:
+
+	`python -m venv venv`
 
 - Install dependencies with:
 

@@ -16,13 +16,19 @@ ai_models = [
 class ChatTab(QtWidgets.QWidget):
     # create a chat completion signal
     chat_completion_signal = QtCore.pyqtSignal(str)
+    error_signal = QtCore.pyqtSignal(str, str)
 
     def __init__(self, api_key):
         '''Chat tab widget constructor'''
         super().__init__()
 
+        font = self.font()
+        font.setPointSize(11)
+        self.setFont(font)
+
         # connect the signal to the display_message slot
         self.chat_completion_signal.connect(self.display_ai_response)
+        self.error_signal.connect(self.display_error_message)
 
         # UI configuration
         self.selected_model = ai_models[0]['id']
@@ -30,9 +36,6 @@ class ChatTab(QtWidgets.QWidget):
         self.client = OpenAI(
             api_key = self.api_key
         )
-        self.messages = [
-            {"role": "system", "content": "Your are a helpful assistant."}
-        ]
 
         # log
         self.chat_log_label = QtWidgets.QLabel("Chat Log:")
@@ -74,6 +77,9 @@ class ChatTab(QtWidgets.QWidget):
         self.send_button = QtWidgets.QPushButton(send_icon, "Send", self)
         self.send_button.clicked.connect(self.send_message)
 
+        self.clear_button = QtWidgets.QPushButton("Clear", self)
+        self.clear_button.clicked.connect(self.init_messages)
+
         export_icon = QtGui.QIcon("resources/export.png")
         self.export_button = QtWidgets.QPushButton(export_icon, "Export Chat", self)
         self.export_button.clicked.connect(self.export_chat)
@@ -94,22 +100,38 @@ class ChatTab(QtWidgets.QWidget):
 
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.send_button)
+        button_layout.addWidget(self.clear_button)
         button_layout.addWidget(self.export_button)
 
         layout.addLayout(button_layout)
 
+        self.init_messages()
+
+    def display_error_message(self, title, message):
+        '''Display an error message'''
+        QtWidgets.QMessageBox.critical(self, title, message)
+
     def eventFilter(self, obj, event):
         '''Event filter to send message on pressing Enter key'''
-        if obj is self.chat_input and event.type() == QtCore.QEvent.KeyPress:
-            if event.key() == QtCore.Qt.Key_Return and event.modifiers() != QtCore.Qt.ShiftModifier:
-                self.send_message()
-                return True
+        if obj is self.chat_input and \
+           event.type() == QtCore.QEvent.Type.KeyPress and \
+           event.key() == QtCore.Qt.Key.Key_Return and \
+           event.modifiers() != QtCore.Qt.KeyboardModifier.ShiftModifier:
+            self.send_message()
+            return True
         return super().eventFilter(obj, event)
 
     def showEvent(self, event):
         '''Focus on chat input when the window is shown'''
         super().showEvent(event)
         self.chat_input.setFocus()
+
+    def init_messages(self):
+        '''Initialize the messages list'''
+        self.messages = [
+            {"role": "system", "content": "Your are a helpful assistant."}
+        ]
+        self.chat_input.clear()
 
     def max_tokens_input_set_value(self, value):
         '''Set the value of the max tokens slider when the input is edited'''
@@ -156,7 +178,7 @@ class ChatTab(QtWidgets.QWidget):
             self.chat_completion_signal.emit(response_text)
         except Exception as e:
             error_msg = f"Error: {str(e)}"
-            QtWidgets.QMessageBox.critical(self, "API Error", error_msg)
+            self.error_signal.emit("API Error", error_msg)
 
     def send_message(self):
         '''Send the message to the API'''
